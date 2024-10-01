@@ -28,5 +28,4 @@ xRASBRWWiVGqBOw-
 ```
 
 Then connect github from the ui from the ui
-
-[http:](https://localhost:8000/)
+https://localhost:8000/
