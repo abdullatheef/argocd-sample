@@ -29,3 +29,16 @@ xRASBRWWiVGqBOw-
 
 Then connect github from the ui from the ui
 https://localhost:8000/
+
+
+
+To disable TLS
+
+# kubectl edit configmaps argocd-cmd-params-cm -n argocd, add
+```
+data:
+  server.insecure: "true"
+```
+
+
+
