@@ -1,0 +1,15 @@
+# nginx-ingressroute.yaml
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: httpd1-route
+  namespace: default
+spec:
+  entryPoints:
+    - web  # Make sure this matches your Traefik entry point
+  routes:
+    - match: Host(`httpd1.example.com`)  # This matches all requests
+      kind: Rule
+      services:
+        - name: httpd-service
+          port: 80
