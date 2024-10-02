@@ -33,8 +33,9 @@ https://localhost:8000/
 
 
 To disable TLS
-
-# kubectl edit configmaps argocd-cmd-params-cm -n argocd, add
+`
+kubectl edit configmaps argocd-cmd-params-cm -n argocd
+`
 ```
 data:
   server.insecure: "true"
