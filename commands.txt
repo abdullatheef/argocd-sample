@@ -7,3 +7,6 @@ kubectl port-forward pod/traefik-7f9ddb77f-qsmzm 8000:8000 -n traefik
 kubectl port-forward pod/traefik-7f9ddb77f-qsmzm 9000:9000 -n traefik
 
 
+
+
+argo submit --from workflowtemplate/ecr-build-push -p git-tag=latest --namespace argo
