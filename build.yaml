@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: ecr-build-push-
+  name: ecr-build-push
   namespace: argo
 spec:
   entrypoint: build-and-push
   arguments:
     parameters:
     - name: git-tag
-      value: latest # Default tag if no git tag is provided
+      value: latest  # Default tag if no git tag is provided
 
   templates:
   - name: build-and-push
@@ -22,21 +22,21 @@ spec:
         arguments:
           parameters:
           - name: git-tag
-            value: "{{inputs.parameters.git-tag}}"
+            value: "{{workflow.parameters.git-tag}}"  # Using workflow parameter
     # Step 3: Tagging the Docker image
     - - name: tagging
         template: tag-image
         arguments:
           parameters:
           - name: git-tag
-            value: "{{inputs.parameters.git-tag}}"
+            value: "{{workflow.parameters.git-tag}}"  # Using workflow parameter
     # Step 4: Pushing the Docker image to ECR
     - - name: push
         template: push-image
         arguments:
           parameters:
           - name: git-tag
-            value: "{{inputs.parameters.git-tag}}"
+            value: "{{workflow.parameters.git-tag}}"  # Using workflow parameter
 
   # Step 1: Cloning the repository
   - name: git-clone
@@ -76,7 +76,7 @@ spec:
       command: ["/bin/sh", "-c"]
       args: [
         "REPO_NAME=$(basename https://github.com/abdullatheef/argocd-sample.git .git) && \
-        docker tag local_${REPO_NAME}_{{inputs.parameters.git-tag}} $ECR_URL/$ECR_REPO:${git-tag}"
+        docker tag local_${REPO_NAME}_{{inputs.parameters.git-tag}} $ECR_URL/$ECR_REPO:{{inputs.parameters.git-tag}}"
       ]
       env:
       - name: ECR_REPO
@@ -97,7 +97,7 @@ spec:
       command: ["/bin/sh", "-c"]
       args: [
         "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URL && \
-        docker push $ECR_URL/$ECR_REPO:${git-tag}"
+        docker push $ECR_URL/$ECR_REPO:{{inputs.parameters.git-tag}}"
       ]
       env:
       - name: AWS_REGION
