@@ -1,0 +1,121 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: ecr-build-push-
+  namespace: argo
+spec:
+  entrypoint: build-and-push
+  arguments:
+    parameters:
+    - name: git-tag
+      value: latest # Default tag if no git tag is provided
+
+  templates:
+  - name: build-and-push
+    steps:
+    # Step 1: Cloning the repository
+    - - name: cloning
+        template: git-clone
+    # Step 2: Building the Docker image locally with local_{reponame}_{gittag}
+    - - name: building-locally
+        template: build-image
+        arguments:
+          parameters:
+          - name: git-tag
+            value: "{{inputs.parameters.git-tag}}"
+    # Step 3: Tagging the Docker image
+    - - name: tagging
+        template: tag-image
+        arguments:
+          parameters:
+          - name: git-tag
+            value: "{{inputs.parameters.git-tag}}"
+    # Step 4: Pushing the Docker image to ECR
+    - - name: push
+        template: push-image
+        arguments:
+          parameters:
+          - name: git-tag
+            value: "{{inputs.parameters.git-tag}}"
+
+  # Step 1: Cloning the repository
+  - name: git-clone
+    container:
+      image: alpine/git
+      command: ["/bin/sh", "-c"]
+      args: ["git clone https://github.com/abdullatheef/argocd-sample.git /src"]
+      volumeMounts:
+      - name: workspace
+        mountPath: /src
+
+  # Step 2: Building the Docker image locally with tag `local_{reponame}_{gittag}`
+  - name: build-image
+    inputs:
+      parameters:
+      - name: git-tag
+    container:
+      image: docker:20.10.7
+      command: ["/bin/sh", "-c"]
+      args: [
+        "REPO_NAME=$(basename https://github.com/abdullatheef/argocd-sample.git .git) && \
+        docker build -t local_${REPO_NAME}_{{inputs.parameters.git-tag}} /src"
+      ]
+      volumeMounts:
+      - name: docker-sock
+        mountPath: /var/run/docker.sock
+      - name: workspace
+        mountPath: /src
+
+  # Step 3: Tagging the Docker image with the Git tag
+  - name: tag-image
+    inputs:
+      parameters:
+      - name: git-tag
+    container:
+      image: docker:20.10.7
+      command: ["/bin/sh", "-c"]
+      args: [
+        "REPO_NAME=$(basename https://github.com/abdullatheef/argocd-sample.git .git) && \
+        docker tag local_${REPO_NAME}_{{inputs.parameters.git-tag}} $ECR_URL/$ECR_REPO:${git-tag}"
+      ]
+      env:
+      - name: ECR_REPO
+        value: "your-repo-name"
+      - name: ECR_URL
+        value: "your-ecr-url"
+      volumeMounts:
+      - name: docker-sock
+        mountPath: /var/run/docker.sock
+
+  # Step 4: Pushing the Docker image to ECR
+  - name: push-image
+    inputs:
+      parameters:
+      - name: git-tag
+    container:
+      image: amazon/aws-cli
+      command: ["/bin/sh", "-c"]
+      args: [
+        "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_URL && \
+        docker push $ECR_URL/$ECR_REPO:${git-tag}"
+      ]
+      env:
+      - name: AWS_REGION
+        valueFrom:
+          secretKeyRef:
+            name: aws-secret
+            key: AWS_REGION
+      - name: ECR_URL
+        value: "<your-ecr-url>"
+      - name: ECR_REPO
+        value: "your-repo-name"
+      volumeMounts:
+      - name: docker-sock
+        mountPath: /var/run/docker.sock
+
+  volumes:
+  - name: workspace
+    emptyDir: {}
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
